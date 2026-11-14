@@ -6,11 +6,32 @@ import openai
 from dotenv import load_dotenv
 from openai import OpenAI
 
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.proxyapi.ru/v1"
 MODEL = "deepseek/deepseek-v4.1-flash-1017"
+
+SYSTEM_INSTRUCTION = (
+    "Ты помогаешь оператору службы поддержки. "
+    "Кратко пересказывай обращение одним предложением. "
+    "Используй только факты из обращения. "
+    "Не придумывай суммы, даты, причины и действия. "
+    "Если данных недостаточно, прямо сообщай об этом."
+)
+
+
+def build_messages(user_text: str) -> list[dict[str, str]]:
+    return [
+        {
+            "role": "system",
+            "content": SYSTEM_INSTRUCTION,
+        },
+        {
+            "role": "user",
+            "content": f"Обращение:\n{user_text}",
+        },
+    ]
 
 
 def summarize_request(client: OpenAI, user_text: str) -> None:
@@ -25,16 +46,7 @@ def summarize_request(client: OpenAI, user_text: str) -> None:
     try:
         response = client.chat.completions.create(
             model=MODEL,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "Сформулируй краткое содержание обращения в одном "
-                        "предложении. Не добавляй факты, которых нет в тексте.\n\n"
-                        f"Обращение: {text}"
-                    ),
-                }
-            ],
+            messages=build_messages(user_text),  # type: ignore[arg-type]
         )
     except openai.AuthenticationError:
         logger.info("Ошибка авторизации: проверьте LLM_API_KEY.")
