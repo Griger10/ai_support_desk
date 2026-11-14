@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.proxyapi.ru/v1"
 MODEL = "deepseek/deepseek-v4.1-flash-1017"
+TEMPERATURE = 0.2
+MAX_OUTPUT_TOKENS = 80
 
 SYSTEM_INSTRUCTION = (
     "Ты помогаешь оператору службы поддержки. "
@@ -47,6 +49,8 @@ def summarize_request(client: OpenAI, user_text: str) -> None:
         response = client.chat.completions.create(
             model=MODEL,
             messages=build_messages(user_text),  # type: ignore[arg-type]
+            temperature=TEMPERATURE,
+            max_completion_tokens=MAX_OUTPUT_TOKENS,
         )
     except openai.AuthenticationError:
         logger.info("Ошибка авторизации: проверьте LLM_API_KEY.")
