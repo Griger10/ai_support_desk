@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-
 BASE_URL = "https://api.proxyapi.ru/openai/v1"
 
 
@@ -12,10 +11,7 @@ def main() -> None:
 
     token = os.getenv("LLM_API_KEY")
     if not token:
-        raise SystemExit(
-            "Не найдена переменная LLM_API_KEY. "
-            "Проверьте файл .env в корне проекта."
-        )
+        raise SystemExit("Не найдена переменная LLM_API_KEY. Проверьте файл .env в корне проекта.")
 
     client = OpenAI(
         base_url=BASE_URL,
