@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://api.proxyapi.ru/v1"
 MODEL = "deepseek/deepseek-v4.1-flash-1017"
 TEMPERATURE = 0.2
-MAX_OUTPUT_TOKENS = 80
+MAX_OUTPUT_TOKENS = 250
 
 SYSTEM_INSTRUCTION = (
     "Ты помогаешь оператору службы поддержки. "
