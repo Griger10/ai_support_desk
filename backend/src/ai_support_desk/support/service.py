@@ -2,8 +2,7 @@ from time import perf_counter
 
 from ai_support_desk.llm import LLMClient, Message
 from ai_support_desk.llm.errors import LLMClientError
-from ai_support_desk.support.dto import SupportSummary
-from ai_support_desk.support.errors import SupportServiceError
+from ai_support_desk.support import SupportSummary, SupportServiceError
 
 SYSTEM_INSTRUCTION = (
     "Ты помощник службы поддержки. "

@@ -23,6 +23,7 @@ ignore = [
     "ISC001",
     "ARG001",
     "RUF001",
+    "T201",
 ]
 
 fixable = ["ALL"]
