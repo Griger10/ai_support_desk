@@ -22,6 +22,8 @@ class LLMClient:
         self._client = OpenAI(
             base_url=str(settings.base_url),
             api_key=settings.llm_api_key.get_secret_value(),
+            timeout=settings.request_timeout_seconds,
+            max_retries=0,
         )
 
     def _generate_once(self, messages: list[Message]) -> LLMResult:

@@ -32,6 +32,11 @@ class Settings(BaseSettings):
         default="development",
         validation_alias="APP_ENV",
     )
+    request_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        validation_alias="REQUEST_TIMEOUT_SECONDS",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
