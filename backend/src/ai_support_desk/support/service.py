@@ -1,0 +1,72 @@
+from time import perf_counter
+
+from ai_support_desk.llm import LLMClient, Message
+from ai_support_desk.llm.errors import LLMClientError
+from ai_support_desk.support.dto import SupportSummary
+from ai_support_desk.support.errors import SupportServiceError
+
+SYSTEM_INSTRUCTION = (
+    "Ты помощник службы поддержки. "
+    "Кратко перескажи обращение одним предложением. "
+    "Не добавляй факты, которых нет в обращении."
+)
+
+
+class SupportService:
+    def __init__(self, llm_client: LLMClient) -> None:
+        self._llm_client = llm_client
+
+    def summarize(self, user_text: str) -> SupportSummary:
+        text = user_text.strip()
+        if not text:
+            raise SupportServiceError("Обращение не должно быть пустым.")
+
+        started_at = perf_counter()
+        try:
+            llm_result = self._llm_client.generate(self._build_messages(text))
+        except LLMClientError as error:
+            raise SupportServiceError(f"Не удалось получить ответ модели: {error}") from error
+        elapsed_seconds = perf_counter() - started_at
+
+        if llm_result.finish_reason == "length":
+            raise SupportServiceError("Ответ модели остановлен из-за ограничения длины.")
+        if llm_result.finish_reason != "stop":
+            raise SupportServiceError(
+                f"Модель не вернула готовое резюме. Причина завершения: {llm_result.finish_reason}."
+            )
+
+        summary = self._validate_summary(llm_result.text)
+
+        return SupportSummary(
+            text=summary,
+            model=llm_result.model,
+            elapsed_seconds=elapsed_seconds,
+            prompt_tokens=llm_result.prompt_tokens,
+            completion_tokens=llm_result.completion_tokens,
+            total_tokens=llm_result.total_tokens,
+            response_id=llm_result.response_id,
+        )
+
+    @staticmethod
+    def _build_messages(user_text: str) -> list[Message]:
+        return [
+            {
+                "role": "system",
+                "content": SYSTEM_INSTRUCTION,
+            },
+            {
+                "role": "user",
+                "content": user_text,
+            },
+        ]
+
+    @staticmethod
+    def _validate_summary(summary: str | None) -> str:
+        if summary is None:
+            raise SupportServiceError("Модель не вернула текст резюме.")
+
+        cleaned_summary = summary.strip()
+        if not cleaned_summary:
+            raise SupportServiceError("Модель вернула пустое резюме.")
+
+        return cleaned_summary

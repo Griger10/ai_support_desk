@@ -1,10 +1,10 @@
 import logging
 from time import perf_counter
 
-import openai
 from pydantic import ValidationError
 
 from ai_support_desk.llm import LLMClient, LLMResult
+from ai_support_desk.llm.errors import LLMClientError
 from ai_support_desk.shared import Settings
 
 logging.basicConfig(level=logging.INFO)
@@ -55,28 +55,8 @@ def summarize_request(client: LLMClient, user_text: str) -> None:
         result = client.generate(
             messages=build_messages(user_text),
         )
-    except openai.AuthenticationError:
-        logger.info("Ошибка авторизации: проверьте LLM_API_KEY.")
-        return
-    except openai.PermissionDeniedError:
-        logger.info("Нет доступа к модели: проверьте разрешения API-ключа.")
-        return
-    except openai.RateLimitError:
-        logger.info("Достигнут лимит запросов провайдера. Повторите запрос позднее.")
-        return
-    except openai.APITimeoutError:
-        logger.info("ProxyAPI не успел ответить за отведенное время.")
-        return
-    except openai.APIConnectionError:
-        logger.info("Не удалось соединиться с ProxyAPI. Проверьте сеть.")
-        return
-    except openai.APIStatusError as error:
-        if error.status_code == 402:
-            logger.info("Недостаточно средств на балансе ProxyAPI.")
-        else:
-            logger.info(f"API вернул ошибку со статусом {error.status_code}.")
-        if error.request_id:
-            logger.info(f"Request ID: {error.request_id}")
+    except LLMClientError as error:
+        logger.error(f"Не удалось получить ответ от модели: {error}")
         return
 
     elapsed_seconds = perf_counter() - started_at

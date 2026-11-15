@@ -1,0 +1,2 @@
+class SupportServiceError(RuntimeError):
+    pass
