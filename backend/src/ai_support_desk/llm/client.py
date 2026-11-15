@@ -92,3 +92,6 @@ class LLMClient:
             ) from error
         except openai.APIError as error:
             raise LLMProviderError("SDK сообщил о неизвестной ошибке провайдера.") from error
+
+    def close(self) -> None:
+        self._client.close()
