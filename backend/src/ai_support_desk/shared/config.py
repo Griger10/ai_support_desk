@@ -37,6 +37,7 @@ class Settings(BaseSettings):
         gt=0.0,
         validation_alias="REQUEST_TIMEOUT_SECONDS",
     )
+    max_retries: int = Field(default=2, ge=0, le=5, validation_alias="MAX_RETRIES")
 
     model_config = SettingsConfigDict(
         env_file=".env",
