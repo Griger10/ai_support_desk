@@ -39,7 +39,7 @@ class PromptTemplate:
                 f"Объявлены: {expected}. Найдены: {actual}."
             )
 
-    def render(self, **variables: str) -> str:
+    def render(self, **variables: str | tuple[str, ...]) -> str:
         provided = frozenset(variables)
         missing = self.required_variables - provided
         if missing:
@@ -52,12 +52,23 @@ class PromptTemplate:
             names = ", ".join(sorted(unexpected))
             raise PromptTemplateError(f"Переданы неизвестные переменные: {names}.")
 
-        invalid = sorted(name for name, value in variables.items() if not isinstance(value, str))
+        invalid = sorted(
+            name
+            for name, value in variables.items()
+            if not isinstance(value, (str, tuple))
+            or (isinstance(value, tuple) and not all(isinstance(item, str) for item in value))
+        )
         if invalid:
             names = ", ".join(invalid)
-            raise PromptTemplateError(f"Значения должны быть строками: {names}.")
+            raise PromptTemplateError(
+                f"Значения должны быть строками или кортежами строк: {names}."
+            )
+
+        normalized: dict[str, str] = {}
+        for name, value in variables.items():
+            normalized[name] = "\n".join(value) if isinstance(value, tuple) else value
 
         values = dict.fromkeys(self.optional_variables, "")
-        values.update(variables)
+        values.update(normalized)
 
         return Template(self.body).substitute(values).strip()

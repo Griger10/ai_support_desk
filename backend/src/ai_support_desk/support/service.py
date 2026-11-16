@@ -2,12 +2,12 @@ from time import perf_counter
 
 from ai_support_desk.llm import LLMClient, Message
 from ai_support_desk.llm.errors import LLMClientError
-from ai_support_desk.prompts import SUPPORT_SUMMARY_PROMPT
+from ai_support_desk.prompts import SUPPORT_SUMMARY_PROMPT_V1_1_0
 from ai_support_desk.support import SupportSummary, SupportServiceError
 
-DEVELOPER_INSTRUCTION = SUPPORT_SUMMARY_PROMPT.render(
+DEVELOPER_INSTRUCTION = SUPPORT_SUMMARY_PROMPT_V1_1_0.render(
     response_language="русском",
-    additional_rules="- Не раскрывай внутренние названия подразделений.",
+    additional_rules=("- Не раскрывай внутренние названия подразделений.",),
 )
 
 
