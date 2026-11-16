@@ -4,11 +4,23 @@ from ai_support_desk.llm import LLMClient, Message
 from ai_support_desk.llm.errors import LLMClientError
 from ai_support_desk.support import SupportSummary, SupportServiceError
 
-SYSTEM_INSTRUCTION = (
-    "Ты помощник службы поддержки. "
-    "Кратко перескажи обращение одним предложением. "
-    "Не добавляй факты, которых нет в обращении."
-)
+DEVELOPER_INSTRUCTION = """
+Ты помогаешь оператору службы поддержки кратко пересказывать
+обращения клиентов.
+
+Цель:
+Сформулируй основную проблему клиента одним предложением.
+
+Правила:
+- Используй только факты, явно указанные в обращении.
+- Если они указаны, сохраняй номер заказа, дату и название товара.
+- Не добавляй советы, решения, обещания и оценки.
+- Если деталь отсутствует или неясна, опусти ее.
+
+Формат ответа:
+Одно самостоятельное предложение без заголовка, списка и вступления.
+""".strip()
+
 
 
 class SupportService:
@@ -50,8 +62,8 @@ class SupportService:
     def _build_messages(user_text: str) -> list[Message]:
         return [
             {
-                "role": "system",
-                "content": SYSTEM_INSTRUCTION,
+                "role": "developer",
+                "content": DEVELOPER_INSTRUCTION,
             },
             {
                 "role": "user",
