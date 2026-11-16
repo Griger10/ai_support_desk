@@ -1,0 +1,2 @@
+class PromptTemplateError(ValueError):
+    pass

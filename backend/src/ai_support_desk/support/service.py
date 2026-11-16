@@ -2,30 +2,13 @@ from time import perf_counter
 
 from ai_support_desk.llm import LLMClient, Message
 from ai_support_desk.llm.errors import LLMClientError
+from ai_support_desk.prompts import SUPPORT_SUMMARY_PROMPT
 from ai_support_desk.support import SupportSummary, SupportServiceError
 
-DEVELOPER_INSTRUCTION = """
-Ты помогаешь оператору службы поддержки кратко пересказывать
-обращения клиентов.
-
-Цель:
-Сформулируй основную проблему клиента одним предложением.
-
-Правила:
-- Используй только факты, явно указанные в обращении.
-- Если они указаны, сохраняй номер заказа, дату и название товара.
-- Не добавляй советы, решения, обещания и оценки.
-- Если деталь отсутствует или неясна, опусти ее.
-
-Порядок работы:
-1. Определи основную проблему клиента.
-2. Выбери только факты, необходимые для понимания проблемы.
-3. Удали приветствия, повторы и второстепенные подробности.
-4. Сформулируй итоговый ответ в требуемом формате.
-
-Формат ответа:
-Одно самостоятельное предложение без заголовка, списка и вступления.
-""".strip()
+DEVELOPER_INSTRUCTION = SUPPORT_SUMMARY_PROMPT.render(
+    response_language="русском",
+    additional_rules=("- Не раскрывай внутренние названия подразделений."),
+)
 
 
 class SupportService:
