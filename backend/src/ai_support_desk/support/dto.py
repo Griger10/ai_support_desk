@@ -5,6 +5,8 @@ from dataclasses import dataclass
 class SupportSummary:
     text: str
     model: str
+    prompt_id: str
+    prompt_version: str
     elapsed_seconds: float
     prompt_tokens: int | None
     completion_tokens: int | None

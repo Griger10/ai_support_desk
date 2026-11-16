@@ -44,6 +44,8 @@ class SupportService:
             completion_tokens=llm_result.completion_tokens,
             total_tokens=llm_result.total_tokens,
             response_id=llm_result.response_id,
+            prompt_id=SUPPORT_SUMMARY_PROMPT_V1_1_0.prompt_id,
+            prompt_version=SUPPORT_SUMMARY_PROMPT_V1_1_0.version,
         )
 
     @staticmethod

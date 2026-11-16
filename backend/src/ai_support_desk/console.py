@@ -28,5 +28,7 @@ def run_console(service: SupportService, app_env: str, configured_model: str) ->
     print("\nМетрики запроса:")
     print(f"Модель ответа: {result.model}")
     print(f"Время ответа: {result.elapsed_seconds:.2f} с")
+    print(f"ID промта: {result.total_tokens}")
+    print(f"Версия промта: {result.prompt_tokens}")
     print_usage(result)
     print(f"ID ответа: {result.response_id}")
