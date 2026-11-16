@@ -7,7 +7,7 @@ from ai_support_desk.support import SupportSummary, SupportServiceError
 
 DEVELOPER_INSTRUCTION = SUPPORT_SUMMARY_PROMPT.render(
     response_language="русском",
-    additional_rules=("- Не раскрывай внутренние названия подразделений."),
+    additional_rules="- Не раскрывай внутренние названия подразделений.",
 )
 
 
