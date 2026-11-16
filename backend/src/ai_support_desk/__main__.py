@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from ai_support_desk.console import run_console
@@ -7,6 +8,7 @@ from ai_support_desk.support import SupportService
 
 
 def main() -> None:
+    load_dotenv()
     try:
         settings = Settings()
     except ValidationError as error:
