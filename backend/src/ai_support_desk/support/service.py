@@ -2,10 +2,10 @@ from time import perf_counter
 
 from ai_support_desk.llm import LLMClient, Message
 from ai_support_desk.llm.errors import LLMClientError
-from ai_support_desk.prompts import SUPPORT_SUMMARY_PROMPT_V1_1_0
+from ai_support_desk.prompts import SUPPORT_SUMMARY_PROMPT
 from ai_support_desk.support import SupportSummary, SupportServiceError
 
-DEVELOPER_INSTRUCTION = SUPPORT_SUMMARY_PROMPT_V1_1_0.render(
+DEVELOPER_INSTRUCTION = SUPPORT_SUMMARY_PROMPT.render(
     response_language="русском",
     additional_rules=("- Не раскрывай внутренние названия подразделений.",),
 )
@@ -44,8 +44,8 @@ class SupportService:
             completion_tokens=llm_result.completion_tokens,
             total_tokens=llm_result.total_tokens,
             response_id=llm_result.response_id,
-            prompt_id=SUPPORT_SUMMARY_PROMPT_V1_1_0.prompt_id,
-            prompt_version=SUPPORT_SUMMARY_PROMPT_V1_1_0.version,
+            prompt_id=SUPPORT_SUMMARY_PROMPT.prompt_id,
+            prompt_version=SUPPORT_SUMMARY_PROMPT.version,
         )
 
     @staticmethod

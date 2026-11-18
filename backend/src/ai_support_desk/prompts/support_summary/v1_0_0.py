@@ -1,6 +1,6 @@
 from ai_support_desk.prompts.template import PromptTemplate
 
-SUPPORT_SUMMARY_PROMPT = PromptTemplate(
+SUPPORT_SUMMARY_PROMPT_V1_0_0 = PromptTemplate(
     prompt_id="support_summary",
     version="1.0.0",
     body="""

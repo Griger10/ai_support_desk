@@ -1,6 +1,16 @@
 from ai_support_desk.prompts.support_summary import (
-    SUPPORT_SUMMARY_PROMPT_V1_1_0,
-    SUPPORT_SUMMARY_PROMPT,
+    ACTIVE_SUPPORT_SUMMARY_VERSION,
+    get_support_summary_prompt,
+    list_support_summary_versions,
 )
 
-__all__ = ["SUPPORT_SUMMARY_PROMPT", "SUPPORT_SUMMARY_PROMPT_V1_1_0"]
+
+SUPPORT_SUMMARY_PROMPT = get_support_summary_prompt()
+
+
+__all__ = [
+    "ACTIVE_SUPPORT_SUMMARY_VERSION",
+    "SUPPORT_SUMMARY_PROMPT",
+    "get_support_summary_prompt",
+    "list_support_summary_versions",
+]
