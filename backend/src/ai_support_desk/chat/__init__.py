@@ -1,0 +1,10 @@
+from ai_support_desk.chat.dto import ChatReply
+from ai_support_desk.chat.errors import ChatServiceError
+from ai_support_desk.chat.service import ChatService
+
+
+__all__ = [
+    "ChatReply",
+    "ChatService",
+    "ChatServiceError",
+]

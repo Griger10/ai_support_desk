@@ -1,0 +1,2 @@
+class ChatServiceError(RuntimeError):
+    pass
