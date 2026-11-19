@@ -50,19 +50,18 @@ class SlidingWindowHistory:
             )
 
         selected_history: list[Message] = []
-
+        total_tokens = required_tokens
         for turn in reversed(turns):
-            candidate_history = [*turn, *selected_history]
-            candidate_messages = [developer_message, *candidate_history, user_message]
-            candidate_tokens = self._token_counter.count_messages(candidate_messages)
+            candidate_tokens = self._token_counter.count_messages(turn)
+            candidate_tokens -= REPLY_PRIMER_TOKENS
 
-            if candidate_tokens > self._input_token_budget:
+            if total_tokens + candidate_tokens > self._input_token_budget:
                 break
-
-            selected_history = candidate_history
-
+            total_tokens += candidate_tokens
+            selected_history.extend(reversed(turn))
+        selected_history.reverse()
         messages = [developer_message, *selected_history, user_message]
-        estimated_tokens = self._token_counter.count_messages(messages)
+        estimated_tokens = total_tokens + REPLY_PRIMER_TOKENS
 
         return PreparedHistory(
             messages=messages,
