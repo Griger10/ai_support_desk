@@ -14,6 +14,8 @@ def print_usage(result: ChatReply) -> None:
     print(f"Сообщений истории в запросе: {result.context_history_messages}")
     print(f"Сообщений истории отброшено: {result.removed_history_messages}")
     print(f"Оценка входных токенов до запроса: {result.estimated_prompt_tokens}")
+    print(f"Есть саммари: {result.has_summary}")
+    print(f"Саммари создано на текущем ходу: {result.summary_updated}")
 
 
 def run_console(

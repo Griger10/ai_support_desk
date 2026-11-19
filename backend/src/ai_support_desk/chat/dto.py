@@ -20,9 +20,12 @@ class ChatReply:
     context_history_messages: int
     removed_history_messages: int
     estimated_prompt_tokens: int
+    summary_updated: bool = False
+    has_summary: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class ChatSession:
     messages: list[Message] = field(default_factory=list)
+    summary: str | None = None
     lock: Lock = field(default_factory=Lock)

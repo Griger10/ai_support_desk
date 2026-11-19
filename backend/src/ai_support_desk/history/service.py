@@ -39,29 +39,48 @@ class SlidingWindowHistory:
         developer_message: Message,
         history: list[Message],
         user_message: Message,
+        context_messages: list[Message] | None = None,
     ) -> PreparedHistory:
         turns = self._split_into_turns(history)
-        required_messages = [developer_message, user_message]
+        fixed_context = context_messages or []
+        required_messages = [
+            developer_message,
+            *fixed_context,
+            user_message,
+        ]
         required_tokens = self._token_counter.count_messages(required_messages)
 
         if required_tokens > self._input_token_budget:
             raise ChatHistoryError(
-                "Developer-инструкция и новое сообщение не помещаются во входной бюджет."
+                "Developer-инструкция, summary и новое сообщение не помещаются во входной бюджет."
             )
 
         selected_history: list[Message] = []
-        total_tokens = required_tokens
         for turn in reversed(turns):
-            candidate_tokens = self._token_counter.count_messages(turn)
-            candidate_tokens -= REPLY_PRIMER_TOKENS
+            candidate_history = [
+                *turn,
+                *selected_history,
+            ]
+            candidate_messages = [
+                developer_message,
+                *fixed_context,
+                *candidate_history,
+                user_message,
+            ]
+            candidate_tokens = self._token_counter.count_messages(candidate_messages)
 
-            if total_tokens + candidate_tokens > self._input_token_budget:
+            if candidate_tokens > self._input_token_budget:
                 break
-            total_tokens += candidate_tokens
-            selected_history.extend(reversed(turn))
-        selected_history.reverse()
-        messages = [developer_message, *selected_history, user_message]
-        estimated_tokens = total_tokens + REPLY_PRIMER_TOKENS
+
+            selected_history = candidate_history
+
+        messages = [
+            developer_message,
+            *fixed_context,
+            *selected_history,
+            user_message,
+        ]
+        estimated_tokens = self._token_counter.count_messages(messages)
 
         return PreparedHistory(
             messages=messages,
