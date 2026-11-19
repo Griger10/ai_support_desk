@@ -17,6 +17,9 @@ class ChatReply:
     total_tokens: int | None
     response_id: str
     history_messages: int
+    context_history_messages: int
+    removed_history_messages: int
+    estimated_prompt_tokens: int
 
 
 @dataclass

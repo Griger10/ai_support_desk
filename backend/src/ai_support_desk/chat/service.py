@@ -2,6 +2,7 @@ from threading import Lock
 from time import perf_counter
 
 from ai_support_desk.chat import ChatReply, ChatServiceError, ChatSession
+from ai_support_desk.history import ChatHistoryError, SlidingWindowHistory
 from ai_support_desk.llm import Message, LLMClient
 from ai_support_desk.llm.errors import LLMClientError
 from ai_support_desk.prompts.support_chat import SUPPORT_CHAT_PROMPT
@@ -10,8 +11,13 @@ CHAT_INSTRUCTION = SUPPORT_CHAT_PROMPT.render()
 
 
 class ChatService:
-    def __init__(self, llm_client: LLMClient) -> None:
+    def __init__(
+        self,
+        llm_client: LLMClient,
+        history_policy: SlidingWindowHistory,
+    ) -> None:
         self._llm_client = llm_client
+        self._history_policy = history_policy
         self._sessions: dict[str, ChatSession] = {}
         self._sessions_lock = Lock()
 
@@ -29,15 +35,21 @@ class ChatService:
         session = self._get_or_create_session(session_key)
 
         with session.lock:
+            developer_message = self._build_developer_message()
             user_message = self._build_user_message(text)
-            messages = self._build_messages(
-                history=session.messages,
-                user_message=user_message,
-            )
+
+            try:
+                prepared = self._history_policy.prepare(
+                    developer_message=developer_message,
+                    history=session.messages,
+                    user_message=user_message,
+                )
+            except ChatHistoryError as error:
+                raise ChatServiceError(f"Не удалось подготовить историю: {error}") from error
 
             started_at = perf_counter()
             try:
-                llm_result = self._llm_client.generate(messages)
+                llm_result = self._llm_client.generate(prepared.messages)
             except LLMClientError as error:
                 raise ChatServiceError(f"Не удалось получить ответ модели: {error}") from error
             elapsed_seconds = perf_counter() - started_at
@@ -63,6 +75,9 @@ class ChatService:
             text=reply_text,
             session_id=session_key,
             history_messages=history_messages,
+            context_history_messages=prepared.context_history_messages,
+            removed_history_messages=prepared.removed_history_messages,
+            estimated_prompt_tokens=prepared.estimated_tokens,
             model=llm_result.model,
             prompt_id=SUPPORT_CHAT_PROMPT.prompt_id,
             prompt_version=SUPPORT_CHAT_PROMPT.version,
@@ -104,25 +119,18 @@ class ChatService:
         return session_key
 
     @staticmethod
-    def _build_user_message(user_text: str) -> Message:
+    def _build_developer_message() -> Message:
         return {
-            "role": "user",
-            "content": (f"<customer_message>\n{user_text}\n</customer_message>"),
+            "role": "developer",
+            "content": CHAT_INSTRUCTION,
         }
 
     @staticmethod
-    def _build_messages(
-        history: list[Message],
-        user_message: Message,
-    ) -> list[Message]:
-        return [
-            {
-                "role": "developer",
-                "content": CHAT_INSTRUCTION,
-            },
-            *history,
-            user_message,
-        ]
+    def _build_user_message(user_text: str) -> Message:
+        return {
+            "role": "user",
+            "content": f"<customer_message>\n{user_text}\n</customer_message>",
+        }
 
     @staticmethod
     def _validate_reply(reply: str | None) -> str:

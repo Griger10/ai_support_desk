@@ -1,4 +1,3 @@
-
 import tiktoken
 
 from ai_support_desk.history.dto import PreparedHistory
