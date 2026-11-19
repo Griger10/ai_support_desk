@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     )
     max_retries: int = Field(default=2, ge=0, le=5, validation_alias="MAX_RETRIES")
 
+    chat_input_token_budget: int = Field(
+        default=6000,
+        gt=0,
+        validation_alias="CHAT_INPUT_TOKEN_BUDGET",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
