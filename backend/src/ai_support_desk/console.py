@@ -11,6 +11,9 @@ def print_usage(result: ChatReply) -> None:
     print(f"Входные токены: {result.prompt_tokens}")
     print(f"Выходные токены: {result.completion_tokens}")
     print(f"Всего токенов: {result.total_tokens}")
+    print(f"Сообщений истории в запросе: {result.context_history_messages}")
+    print(f"Сообщений истории отброшено: {result.removed_history_messages}")
+    print(f"Оценка входных токенов до запроса: {result.estimated_prompt_tokens}")
 
 
 def run_console(

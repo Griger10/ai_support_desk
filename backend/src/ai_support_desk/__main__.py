@@ -3,6 +3,8 @@ from pydantic import ValidationError
 
 from ai_support_desk.chat import ChatService
 from ai_support_desk.console import run_console
+from ai_support_desk.history import SlidingWindowHistory
+from ai_support_desk.history.service import TokenCounter
 from ai_support_desk.llm import LLMClient
 from ai_support_desk.shared import Settings
 
@@ -17,9 +19,13 @@ def main() -> None:
             field = ".".join(str(part) for part in issue["loc"])
             print(f"- {field}: {issue['msg']}")
         return
-
+    token_counter = TokenCounter()
+    sliding_history = SlidingWindowHistory(
+        token_counter=token_counter,
+        input_token_budget=settings.chat_input_token_budget,
+    )
     llm_client = LLMClient(settings)
-    chat_service = ChatService(llm_client)
+    chat_service = ChatService(llm_client, sliding_history)
 
     try:
         run_console(
