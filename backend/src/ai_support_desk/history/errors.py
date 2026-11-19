@@ -1,0 +1,2 @@
+class ChatHistoryError(RuntimeError):
+    pass
