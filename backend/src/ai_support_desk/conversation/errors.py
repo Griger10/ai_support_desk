@@ -1,0 +1,2 @@
+class ConversationSummaryError(RuntimeError):
+    pass
