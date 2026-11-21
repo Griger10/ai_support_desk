@@ -1,0 +1,42 @@
+name: ci.yml
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - name: setup_python
+        uses: actions/setup-python@v7
+        with:
+          python-version: 3.15
+      - name: setup_uv
+        uses: astral-sh/setup-uv@v7
+      - name: setup_dependencies
+        run: uv sync --group dev --locked
+      - name: linting
+        run: VIRTUAL_ENV= uv run ruff check
+  typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - name: setup_python
+        uses: actions/setup-python@v7
+        with:
+          python-version: 3.15
+      - name: setup_uv
+        uses: astral-sh/setup-uv@v7
+      - name: setup_dependencies
+        run: uv sync --group dev --locked
+      - name: type_check
+        run: VIRTUAL_ENV= uv run mypy --no-incremental
