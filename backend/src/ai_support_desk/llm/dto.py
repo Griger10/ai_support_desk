@@ -10,3 +10,21 @@ class LLMResult:
     completion_tokens: int | None
     total_tokens: int | None
     response_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class LLMTextDelta:
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class LLMStreamCompleted:
+    model: str
+    finish_reason: str | None
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+    response_id: str
+
+
+type LLMStreamEvent = LLMTextDelta | LLMStreamCompleted
