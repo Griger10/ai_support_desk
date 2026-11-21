@@ -57,7 +57,7 @@ class LLMClient:
         except openai.APIError as error:
             raise self._convert_error(error) from error
 
-    def stream(self, messages: list[Message]) -> LLMResult:
+    def stream(self, messages: list[Message]) -> Generator[LLMStreamEvent]:
         try:
             yield from self._stream_once(messages)
         except openai.APIError as error:
@@ -67,7 +67,7 @@ class LLMClient:
         self,
         messages: list[Message],
     ) -> Generator[LLMStreamEvent]:
-        stream = self._client.chat.completions.create(
+        stream = self._client.chat.completions.create(  # type: ignore[call-overload]
             model=self._settings.model,
             messages=messages,
             temperature=self._settings.temperature,

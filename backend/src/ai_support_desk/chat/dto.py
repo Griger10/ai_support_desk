@@ -29,3 +29,16 @@ class ChatSession:
     messages: list[Message] = field(default_factory=list)
     summary: str | None = None
     lock: Lock = field(default_factory=Lock)
+
+
+@dataclass(frozen=True, slots=True)
+class ChatTextDelta:
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class ChatStreamCompleted:
+    result: ChatReply
+
+
+type ChatStreamEvent = ChatTextDelta | ChatStreamCompleted
