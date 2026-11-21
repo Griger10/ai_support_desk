@@ -45,6 +45,12 @@ class Settings(BaseSettings):
         validation_alias="CHAT_INPUT_TOKEN_BUDGET",
     )
 
+    stream_timeout_seconds: float = Field(
+        default=60.0,
+        gt=0.0,
+        validation_alias="STREAM_TIMEOUT_SECONDS",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
