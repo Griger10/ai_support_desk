@@ -15,8 +15,7 @@ from ai_support_desk.history import ChatHistoryError, SlidingWindowHistory
 from ai_support_desk.llm import Message, LLMClient, LLMTextDelta, LLMStreamCompleted
 from ai_support_desk.llm.errors import LLMClientError
 from ai_support_desk.prompts.support_chat import SUPPORT_CHAT_PROMPT
-
-CHAT_INSTRUCTION = SUPPORT_CHAT_PROMPT.render()
+from ai_support_desk.prompts.template import PromptTemplate
 
 
 class ChatService:
@@ -25,12 +24,14 @@ class ChatService:
         llm_client: LLMClient,
         history_policy: SlidingWindowHistory,
         summary_service: ConversationSummaryService,
+        prompt: PromptTemplate = SUPPORT_CHAT_PROMPT,
     ) -> None:
         self._llm_client = llm_client
         self._history_policy = history_policy
         self._summary_service = summary_service
         self._sessions: dict[str, ChatSession] = {}
         self._sessions_lock = Lock()
+        self._chat_instruction = prompt.render()
 
     def reply(self, session_id: str, user_text: str) -> ChatReply:
         result: ChatReply | None = None
@@ -193,11 +194,10 @@ class ChatService:
             raise ChatServiceError("Session ID не должен быть пустым.")
         return session_key
 
-    @staticmethod
-    def _build_developer_message() -> Message:
+    def _build_developer_message(self) -> Message:
         return {
             "role": "developer",
-            "content": CHAT_INSTRUCTION,
+            "content": self._chat_instruction,
         }
 
     @staticmethod
