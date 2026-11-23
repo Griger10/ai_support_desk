@@ -1,8 +1,10 @@
 from time import monotonic
 from collections.abc import Generator
+from typing import Any
 
 import openai
 from openai import OpenAI
+from openai.types.chat import ChatCompletion
 
 from ai_support_desk.llm import LLMStreamEvent, LLMTextDelta, LLMStreamCompleted, LLMResult
 from ai_support_desk.llm.errors import (
@@ -17,7 +19,8 @@ from ai_support_desk.llm.errors import (
 )
 from ai_support_desk.shared import Settings
 
-Message = dict[str, str]
+type Message = dict[str, str]
+type JsonSchema = dict[str, Any]
 
 
 class LLMClient:
@@ -37,19 +40,63 @@ class LLMClient:
             temperature=self._settings.temperature,
             max_completion_tokens=self._settings.max_output_tokens,
         )
+        return self._to_result(response)
+
+    @staticmethod
+    def _to_result(response: ChatCompletion) -> LLMResult:
+        if not response.choices:
+            raise LLMProviderError("Провайдер вернул ответ без вариантов продолжения.")
 
         choice = response.choices[0]
         usage = response.usage
 
         return LLMResult(
             text=choice.message.content,
+            refusal=choice.message.refusal,
             model=response.model,
             finish_reason=choice.finish_reason,
-            prompt_tokens=usage.prompt_tokens if usage is not None else None,
-            completion_tokens=usage.completion_tokens if usage is not None else None,
-            total_tokens=usage.total_tokens if usage is not None else None,
+            prompt_tokens=(usage.prompt_tokens if usage is not None else None),
+            completion_tokens=(usage.completion_tokens if usage is not None else None),
+            total_tokens=(usage.total_tokens if usage is not None else None),
             response_id=response.id,
         )
+
+    def generate_structured(
+        self,
+        messages: list[Message],
+        schema_name: str,
+        schema: JsonSchema,
+    ) -> LLMResult:
+        try:
+            return self._generate_structured_once(
+                messages=messages,
+                schema_name=schema_name,
+                schema=schema,
+            )
+        except openai.APIError as error:
+            raise self._convert_error(error) from error
+
+    def _generate_structured_once(
+        self,
+        messages: list[Message],
+        schema_name: str,
+        schema: JsonSchema,
+    ) -> LLMResult:
+        response = self._client.chat.completions.create(  # type: ignore[call-overload]
+            model=self._settings.model,
+            messages=messages,
+            temperature=self._settings.temperature,
+            max_completion_tokens=self._settings.max_output_tokens,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "strict": True,
+                    "schema": schema,
+                },
+            },
+        )
+        return self._to_result(response)
 
     def generate(self, messages: list[Message]) -> LLMResult:
         try:

@@ -10,6 +10,7 @@ class LLMResult:
     completion_tokens: int | None
     total_tokens: int | None
     response_id: str
+    refusal: str | None
 
 
 @dataclass(frozen=True, slots=True)
