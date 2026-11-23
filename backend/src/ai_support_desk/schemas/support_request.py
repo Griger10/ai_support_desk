@@ -16,11 +16,11 @@ SUPPORT_REQUEST_SCHEMA = {
         },
         "order_id": {
             "type": ["string", "null"],
-            "description": ("Номер заказа из обращения или null, если клиент его не указал."),
+            "description": "Номер заказа из обращения или null, если клиент его не указал.",
         },
         "product": {
             "type": ["string", "null"],
-            "description": ("Название товара из обращения или null, если товар не указан."),
+            "description": "Название товара из обращения или null, если товар не указан.",
         },
         "urgency": {
             "type": "string",
@@ -29,7 +29,7 @@ SUPPORT_REQUEST_SCHEMA = {
         },
         "missing_fields": {
             "type": "array",
-            "description": ("Сведения, которых не хватает для обработки."),
+            "description": "Сведения, которых не хватает для обработки.",
             "items": {
                 "type": "string",
                 "enum": [
