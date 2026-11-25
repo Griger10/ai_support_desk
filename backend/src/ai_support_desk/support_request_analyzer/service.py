@@ -9,6 +9,7 @@ from ai_support_desk.models import (
     validate_support_request,
     SupportRequestSemanticError,
 )
+from ai_support_desk.models.support_request import Urgency, SupportCategory
 from ai_support_desk.prompts.support_request_analysis import SUPPORT_REQUEST_ANALYSIS_PROMPT
 from ai_support_desk.schemas import SUPPORT_REQUEST_SCHEMA_NAME, SUPPORT_REQUEST_SCHEMA
 from ai_support_desk.support_request_analyzer import (
@@ -17,6 +18,11 @@ from ai_support_desk.support_request_analyzer import (
     InvalidSupportRequestError,
     SupportRequestAnalyzerError,
     SupportRequestResult,
+)
+from ai_support_desk.support_request_analyzer.dto import (
+    SupportRequestDecision,
+    ReviewReason,
+    MIN_AUTOMATIC_CONFIDENCE,
 )
 
 DEVELOPER_INSTRUCTION = SUPPORT_REQUEST_ANALYSIS_PROMPT.render()
@@ -136,3 +142,26 @@ class SupportRequestAnalyzer:
             return analysis, result, repair_attempts
 
         raise RuntimeError("Недостижимое состояние.")
+
+
+def decide_review(result: SupportRequestResult) -> SupportRequestDecision:
+    analysis = result.analysis
+    reasons: list[ReviewReason] = []
+
+    if analysis.confidence < MIN_AUTOMATIC_CONFIDENCE:
+        reasons.append(ReviewReason.LOW_CONFIDENCE)
+
+    if analysis.urgency is Urgency.HIGH:
+        reasons.append(ReviewReason.HIGH_URGENCY)
+
+    if analysis.category is SupportCategory.OTHER:
+        reasons.append(ReviewReason.UNKNOWN_CATEGORY)
+
+    if result.repair_attempts > 0:
+        reasons.append(ReviewReason.REPAIRED_RESULT)
+
+    return SupportRequestDecision(
+        result=result,
+        requires_human_review=bool(reasons),
+        review_reasons=tuple(reasons),
+    )

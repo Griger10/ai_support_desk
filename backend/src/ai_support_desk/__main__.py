@@ -8,6 +8,7 @@ from ai_support_desk.history import SlidingWindowHistory
 from ai_support_desk.history.service import TokenCounter
 from ai_support_desk.llm import LLMClient
 from ai_support_desk.shared import Settings
+from ai_support_desk.support_request_analyzer import SupportRequestAnalyzer
 
 
 def main() -> None:
@@ -28,12 +29,14 @@ def main() -> None:
     )
     summary_service = ConversationSummaryService(llm_client)
     chat_service = ChatService(llm_client, sliding_history, summary_service)
+    request_analyzer = SupportRequestAnalyzer(llm_client)
 
     try:
         run_console(
             chat_service,
             app_env=settings.app_env,
             configured_model=settings.model,
+            analyzer=request_analyzer,
         )
     finally:
         llm_client.close()

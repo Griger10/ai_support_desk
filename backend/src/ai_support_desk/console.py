@@ -7,6 +7,12 @@ from ai_support_desk.chat import (
     ChatTextDelta,
     ChatStreamCompleted,
 )
+from ai_support_desk.support_request_analyzer import (
+    SupportRequestDecision,
+    SupportRequestAnalyzer,
+    SupportRequestAnalyzerError,
+    decide_review,
+)
 
 
 def print_usage(result: ChatReply) -> None:
@@ -33,8 +39,29 @@ def print_metadata(result: ChatReply) -> None:
     print(f"ID ответа: {result.response_id}")
 
 
+def print_analysis(
+    decision: SupportRequestDecision,
+) -> None:
+    result = decision.result
+
+    print("\nАнализ обращения:")
+    print(result.analysis.model_dump_json(indent=2))
+    print(f"Нужна проверка человеком: {'да' if decision.requires_human_review else 'нет'}")
+
+    if decision.review_reasons:
+        reasons = ", ".join(reason.value for reason in decision.review_reasons)
+        print(f"Причины проверки: {reasons}")
+
+    print(f"Промпт: {result.prompt_id}@{result.prompt_version}")
+    print(f"Исправляющих запросов: {result.repair_attempts}")
+    print(f"Время анализа: {result.elapsed_seconds:.2f} с")
+    print(f"Всего токенов: {result.total_tokens}")
+    print(f"ID ответа: {result.response_id}")
+
+
 def run_console(
     service: ChatService,
+    analyzer: SupportRequestAnalyzer,
     app_env: str,
     configured_model: str,
 ) -> None:
@@ -43,7 +70,7 @@ def run_console(
 
     session_id = uuid4().hex
     print(f"Session ID: {session_id}")
-    print("Команды: /new — новый диалог, /exit — выход.")
+    print("Команды: /new — новый диалог, /analyze — анализ обращения, /exit — выход.")
     print("Во время ответа нажмите Ctrl+C, чтобы отменить генерацию.")
 
     while True:
@@ -57,6 +84,19 @@ def run_console(
             service.reset_session(session_id)
             session_id = uuid4().hex
             print(f"Новый Session ID: {session_id}")
+            continue
+
+        if command == "/analyze":
+            request_text = input("Обращение: ")
+
+            try:
+                analysis_result = analyzer.analyze(request_text)
+            except SupportRequestAnalyzerError as error:
+                print(f"Ошибка анализа: {error}")
+                continue
+
+            decision = decide_review(analysis_result)
+            print_analysis(decision)
             continue
 
         stream = service.stream_reply(session_id, user_text)
