@@ -11,6 +11,7 @@ class LLMResult:
     total_tokens: int | None
     response_id: str
     refusal: str | None
+    tool_calls: tuple[ToolCall, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,13 @@ class LLMStreamCompleted:
     completion_tokens: int | None
     total_tokens: int | None
     response_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCall:
+    id: str
+    name: str
+    arguments: str
 
 
 type LLMStreamEvent = LLMTextDelta | LLMStreamCompleted

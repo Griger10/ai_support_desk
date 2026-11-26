@@ -1,12 +1,18 @@
 from time import monotonic
 from collections.abc import Generator
-from typing import Any
+from typing import Any, Literal
 
 import openai
 from openai import OpenAI
-from openai.types.chat import ChatCompletion
+from openai.types.chat import ChatCompletion, ChatCompletionMessageFunctionToolCall
 
-from ai_support_desk.llm import LLMStreamEvent, LLMTextDelta, LLMStreamCompleted, LLMResult
+from ai_support_desk.llm import (
+    LLMStreamEvent,
+    LLMTextDelta,
+    LLMStreamCompleted,
+    LLMResult,
+    ToolCall,
+)
 from ai_support_desk.llm.errors import (
     LLMProviderError,
     LLMConnectionError,
@@ -19,8 +25,9 @@ from ai_support_desk.llm.errors import (
 )
 from ai_support_desk.shared import Settings
 
-type Message = dict[str, str]
+type Message = dict[str, Any]
 type JsonSchema = dict[str, Any]
+type ToolDefinition = dict[str, Any]
 
 
 class LLMClient:
@@ -50,6 +57,16 @@ class LLMClient:
         choice = response.choices[0]
         usage = response.usage
 
+        tool_calls = tuple(
+            ToolCall(
+                id=tool_call.id,
+                name=tool_call.function.name,
+                arguments=tool_call.function.arguments,
+            )
+            for tool_call in (choice.message.tool_calls or [])
+            if type(tool_call) is ChatCompletionMessageFunctionToolCall
+        )
+
         return LLMResult(
             text=choice.message.content,
             refusal=choice.message.refusal,
@@ -59,6 +76,7 @@ class LLMClient:
             completion_tokens=(usage.completion_tokens if usage is not None else None),
             total_tokens=(usage.total_tokens if usage is not None else None),
             response_id=response.id,
+            tool_calls=tool_calls,
         )
 
     def generate_structured(
@@ -95,6 +113,38 @@ class LLMClient:
                     "schema": schema,
                 },
             },
+        )
+        return self._to_result(response)
+
+    def generate_with_tools(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition],
+        tool_choice: Literal["auto", "none"] = "auto",
+    ) -> LLMResult:
+        try:
+            return self._generate_with_tools_once(
+                messages=messages,
+                tools=tools,
+                tool_choice=tool_choice,
+            )
+        except openai.APIError as error:
+            raise self._convert_error(error) from error
+
+    def _generate_with_tools_once(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition],
+        tool_choice: Literal["auto", "none"],
+    ) -> LLMResult:
+        response = self._client.chat.completions.create(
+            model=self._settings.model,
+            messages=messages,  # type: ignore[arg-type]
+            temperature=self._settings.temperature,
+            max_completion_tokens=self._settings.max_output_tokens,
+            tools=tools,  # type: ignore[arg-type]
+            tool_choice=tool_choice,
+            parallel_tool_calls=False,
         )
         return self._to_result(response)
 
