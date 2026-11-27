@@ -3,13 +3,20 @@ from typing import Protocol, Literal
 from ai_support_desk.llm import Message, LLMResult, ToolCall
 from ai_support_desk.llm.client import ToolDefinition
 from ai_support_desk.llm.errors import LLMClientError
-from ai_support_desk.tools import ToolLoopResult, ToolAuditRecord
+from ai_support_desk.tools import (
+    ToolLoopResult,
+    ToolAuditRecord,
+    ToolConfirmationRequest,
+    ToolExecutionResult,
+)
 from ai_support_desk.tools.errors import (
     ToolLoopError,
     ToolLoopProtocolError,
     ToolLoopLimitError,
     ToolExecutionError,
     ToolLoopExecutionError,
+    ToolConfirmationRequiredError,
+    ToolConfirmationNotFoundError,
 )
 from ai_support_desk.tools.execution import ToolExecutor
 from ai_support_desk.tools.registry import ToolRegistry
@@ -39,6 +46,29 @@ class BoundedToolLoop:
         self._registry = registry
         self._executor = executor
         self._max_steps = max_steps
+
+    def confirm(
+        self,
+        confirmation_id: str,
+    ) -> ToolExecutionResult:
+        try:
+            return self._executor.confirm(confirmation_id)
+        except ToolConfirmationNotFoundError as error:
+            raise ToolLoopError(str(error)) from error
+        except ToolExecutionError as error:
+            raise ToolLoopExecutionError(
+                str(error),
+                error.audit,
+            ) from error
+
+    def cancel(
+        self,
+        confirmation_id: str,
+    ) -> ToolAuditRecord:
+        try:
+            return self._executor.cancel(confirmation_id)
+        except ToolConfirmationNotFoundError as error:
+            raise ToolLoopError(str(error)) from error
 
     def run(self, messages: list[Message]) -> ToolLoopResult:
         conversation = list(messages)
@@ -71,6 +101,7 @@ class BoundedToolLoop:
                     llm_results=llm_results,
                     tool_names=tool_names,
                     audit_records=audit_records,
+                    confirmation=None,
                 )
 
             if result.finish_reason != "tool_calls":
@@ -91,6 +122,15 @@ class BoundedToolLoop:
 
             try:
                 execution = self._executor.execute(tool_call)
+            except ToolConfirmationRequiredError as error:
+                audit_records.append(error.audit)
+                return self._build_result(
+                    text=self._build_confirmation_text(error.request),
+                    llm_results=llm_results,
+                    tool_names=tool_names,
+                    audit_records=audit_records,
+                    confirmation=error.request,
+                )
             except ToolExecutionError as error:
                 raise ToolLoopExecutionError(str(error), error.audit) from error
 
@@ -139,6 +179,7 @@ class BoundedToolLoop:
         llm_results: list[LLMResult],
         tool_names: list[str],
         audit_records: list[ToolAuditRecord],
+        confirmation: ToolConfirmationRequest | None,
     ) -> ToolLoopResult:
         def sum_usage(values: list[int | None]) -> int | None:
             if any(value is None for value in values):
@@ -156,4 +197,17 @@ class BoundedToolLoop:
             tool_calls_count=len(tool_names),
             tool_names=tuple(tool_names),
             audit_records=tuple(audit_records),
+            confirmation=confirmation,
+        )
+
+    @staticmethod
+    def _build_confirmation_text(
+        request: ToolConfirmationRequest,
+    ) -> str:
+        return (
+            "Подготовлено действие, которое изменяет данные.\n"
+            f"Инструмент: {request.tool_name}\n"
+            f"Аргументы: {request.arguments_json}\n"
+            "Введите /confirm для выполнения "
+            "или /cancel для отмены."
         )

@@ -87,6 +87,7 @@ class ToolLoopResult:
     tool_calls_count: int
     tool_names: tuple[str, ...]
     audit_records: tuple[ToolAuditRecord, ...]
+    confirmation: ToolConfirmationRequest | None
 
 
 @dataclass(frozen=True, slots=True)

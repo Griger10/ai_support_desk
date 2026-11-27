@@ -4,6 +4,7 @@ from ai_support_desk.tools.dto import (
     ToolAuditRecord,
     ToolAccess,
     ToolConfirmationRequest,
+    ToolExecutionResult,
 )
 from ai_support_desk.tools.errors import (
     ToolRegistryError,
@@ -22,6 +23,7 @@ __all__ = [
     "ToolAccess",
     "ToolAuditRecord",
     "ToolConfirmationRequest",
+    "ToolExecutionResult",
     "ToolLoopResult",
     "ToolNotRegisteredError",
     "ToolRegistryError",
