@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
-from ai_support_desk.tools import RegisteredTool
+from ai_support_desk.tools import RegisteredTool, ToolAccess
 
 RETURN_POLICY_DATA: dict[str, tuple[int, str]] = {
     "кофемашина": (
@@ -68,5 +68,6 @@ RETURN_POLICY_TOOL = RegisteredTool[GetReturnPolicyArguments, ReturnPolicyResult
     ),
     arguments_model=GetReturnPolicyArguments,
     handler=get_return_policy,
+    tool_access=ToolAccess.READ_ONLY,
     timeout_seconds=2.0,
 )

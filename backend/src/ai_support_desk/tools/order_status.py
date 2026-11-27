@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ai_support_desk.tools import RegisteredTool
+from ai_support_desk.tools import RegisteredTool, ToolAccess
 
 GET_ORDER_STATUS_TOOL_NAME = "get_order_status"
 
@@ -68,5 +68,6 @@ ORDER_STATUS_TOOL = RegisteredTool[GetOrderStatusArguments, OrderStatusResult](
     ),
     arguments_model=GetOrderStatusArguments,
     handler=get_order_status,
+    tool_access=ToolAccess.READ_ONLY,
     timeout_seconds=2.0,
 )

@@ -6,6 +6,10 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 
+class ToolAccess(StrEnum):
+    READ_ONLY = "read_only"
+    WRITE = "write"
+
 
 @dataclass(frozen=True, slots=True)
 class RegisteredTool[ArgumentsT: BaseModel, ResultT: BaseModel]:
@@ -13,6 +17,7 @@ class RegisteredTool[ArgumentsT: BaseModel, ResultT: BaseModel]:
     description: str
     arguments_model: type[ArgumentsT]
     handler: Callable[[ArgumentsT], ResultT]
+    tool_access: ToolAccess = ToolAccess.READ_ONLY
     timeout_seconds: float = 2.0
 
     def __post_init__(self) -> None:
