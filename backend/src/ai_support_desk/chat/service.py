@@ -1,6 +1,6 @@
+from collections.abc import Generator
 from threading import Lock
 from time import perf_counter
-from collections.abc import Generator
 
 from ai_support_desk.chat import (
     ChatReply,
@@ -12,26 +12,28 @@ from ai_support_desk.chat import (
 )
 from ai_support_desk.conversation import ConversationSummaryService, ConversationSummaryError
 from ai_support_desk.history import ChatHistoryError, SlidingWindowHistory
-from ai_support_desk.llm import Message, LLMClient, LLMTextDelta, LLMStreamCompleted
-from ai_support_desk.llm.errors import LLMClientError
+from ai_support_desk.llm import Message
 from ai_support_desk.prompts.support_chat import SUPPORT_CHAT_PROMPT
 from ai_support_desk.prompts.template import PromptTemplate
+from ai_support_desk.tools import BoundedToolLoop
+from ai_support_desk.tools.errors import ToolLoopError
 
 
 class ChatService:
     def __init__(
         self,
-        llm_client: LLMClient,
+        tool_loop: BoundedToolLoop,
         history_policy: SlidingWindowHistory,
         summary_service: ConversationSummaryService,
         prompt: PromptTemplate = SUPPORT_CHAT_PROMPT,
     ) -> None:
-        self._llm_client = llm_client
+        self._tool_loop = tool_loop
         self._history_policy = history_policy
         self._summary_service = summary_service
         self._sessions: dict[str, ChatSession] = {}
         self._sessions_lock = Lock()
         self._chat_instruction = prompt.render()
+        self._prompt = prompt
 
     def reply(self, session_id: str, user_text: str) -> ChatReply:
         result: ChatReply | None = None
@@ -104,32 +106,15 @@ class ChatService:
                         f"Новое summary не помещается в бюджет: {error}"
                     ) from error
 
-            reply_parts: list[str] = []
-            llm_completed: LLMStreamCompleted | None = None
-
             try:
-                for event in self._llm_client.stream(prepared.messages):
-                    if isinstance(event, LLMTextDelta):
-                        reply_parts.append(event.text)
-                        yield ChatTextDelta(text=event.text)
-                    elif isinstance(event, LLMStreamCompleted):
-                        llm_completed = event
-            except LLMClientError as error:
-                raise ChatServiceError(f"Не удалось получить ответ модели: {error}") from error
+                loop_result = self._tool_loop.run(prepared.messages)
+            except ToolLoopError as error:
+                raise ChatServiceError(f"Не удалось получить ответ: {error}") from error
 
             elapsed_seconds = perf_counter() - started_at
+            reply_text = self._validate_reply(loop_result.text)
 
-            if llm_completed is None:
-                raise ChatServiceError("Поток завершился без итоговых метаданных.")
-            if llm_completed.finish_reason == "length":
-                raise ChatServiceError("Ответ остановлен из-за ограничения длины.")
-            if llm_completed.finish_reason != "stop":
-                raise ChatServiceError(
-                    "Модель не вернула готовый ответ. "
-                    f"Причина завершения: {llm_completed.finish_reason}."
-                )
-
-            reply_text = self._validate_reply("".join(reply_parts))
+            yield ChatTextDelta(text=reply_text)
             assistant_message: Message = {
                 "role": "assistant",
                 "content": reply_text,
@@ -150,14 +135,17 @@ class ChatService:
                 context_history_messages=prepared.context_history_messages,
                 removed_history_messages=prepared.removed_history_messages,
                 estimated_prompt_tokens=prepared.estimated_tokens,
-                model=llm_completed.model,
-                prompt_id=SUPPORT_CHAT_PROMPT.prompt_id,
-                prompt_version=SUPPORT_CHAT_PROMPT.version,
+                model=loop_result.model,
+                prompt_id=self._prompt.prompt_id,
+                prompt_version=self._prompt.version,
                 elapsed_seconds=elapsed_seconds,
-                prompt_tokens=llm_completed.prompt_tokens,
-                completion_tokens=llm_completed.completion_tokens,
-                total_tokens=llm_completed.total_tokens,
-                response_id=llm_completed.response_id,
+                prompt_tokens=loop_result.prompt_tokens,
+                completion_tokens=loop_result.completion_tokens,
+                total_tokens=loop_result.total_tokens,
+                response_id=loop_result.response_ids[-1],
+                response_ids=loop_result.response_ids,
+                tool_calls_count=loop_result.tool_calls_count,
+                tool_names=loop_result.tool_names,
                 summary_updated=summary_updated,
                 has_summary=session.summary is not None,
             )

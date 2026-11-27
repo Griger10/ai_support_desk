@@ -5,9 +5,11 @@ from ai_support_desk.tools.errors import (
     ToolNotRegisteredError,
 )
 from ai_support_desk.tools.order_status import OrderStatusResult, get_order_status
+from ai_support_desk.tools.tool_loop import BoundedToolLoop
 
 
 __all__ = [
+    "BoundedToolLoop",
     "DuplicateToolError",
     "OrderStatusResult",
     "RegisteredTool",

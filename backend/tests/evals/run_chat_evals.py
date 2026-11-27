@@ -13,6 +13,9 @@ from ai_support_desk.llm import LLMClient
 from ai_support_desk.prompts.support_chat import get_support_chat_prompt
 from ai_support_desk.prompts.template import PromptTemplate
 from ai_support_desk.shared import Settings
+from ai_support_desk.tools import BoundedToolLoop
+from ai_support_desk.tools.default_registry import build_default_tool_registry
+from ai_support_desk.tools.execution import ToolExecutor
 
 from tests.evals.chat_models import TurnEvalResult
 from tests.evals.chat_checks import run_suite
@@ -26,6 +29,13 @@ def build_chat_service(
     llm_client: LLMClient,
     prompt: PromptTemplate,
 ) -> ChatService:
+    pool_registry = build_default_tool_registry()
+    tool_executor = ToolExecutor(pool_registry)
+    tool_loop = BoundedToolLoop(
+        client=llm_client,
+        registry=pool_registry,
+        executor=tool_executor,
+    )
     token_counter = TokenCounter()
     history_policy = SlidingWindowHistory(
         token_counter=token_counter,
@@ -34,7 +44,7 @@ def build_chat_service(
     summary_service = ConversationSummaryService(llm_client)
 
     return ChatService(
-        llm_client=llm_client,
+        tool_loop=tool_loop,
         history_policy=history_policy,
         summary_service=summary_service,
         prompt=prompt,

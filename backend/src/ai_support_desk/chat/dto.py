@@ -16,6 +16,9 @@ class ChatReply:
     completion_tokens: int | None
     total_tokens: int | None
     response_id: str
+    response_ids: tuple[str, ...]
+    tool_calls_count: int
+    tool_names: tuple[str, ...]
     history_messages: int
     context_history_messages: int
     removed_history_messages: int

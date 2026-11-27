@@ -7,8 +7,6 @@ from ai_support_desk.chat import (
     ChatTextDelta,
     ChatStreamCompleted,
 )
-from ai_support_desk.order_status_assistant import OrderStatusAnswer, OrderStatusAssistantError
-from ai_support_desk.order_status_assistant.service import OrderStatusAssistant
 from ai_support_desk.support_request_analyzer import (
     SupportRequestDecision,
     SupportRequestAnalyzer,
@@ -38,7 +36,10 @@ def print_metadata(result: ChatReply) -> None:
     print(f"Промпт: {result.prompt_id}@{result.prompt_version}")
     print(f"Время ответа: {result.elapsed_seconds:.2f} с")
     print_usage(result)
-    print(f"ID ответа: {result.response_id}")
+    print(f"Инструментов выполнено: {result.tool_calls_count}")
+    if result.tool_names:
+        print(f"Инструменты: {', '.join(result.tool_names)}")
+    print(f"ID ответов: {', '.join(result.response_ids)}")
 
 
 def print_analysis(
@@ -61,22 +62,9 @@ def print_analysis(
     print(f"ID ответа: {result.response_id}")
 
 
-def print_order_status_answer(result: OrderStatusAnswer) -> None:
-    print(f"\nAssistant: {result.text}")
-    print(f"Инструмент использован: {'да' if result.tool_used else 'нет'}")
-
-    if result.order_id is not None:
-        print(f"Номер заказа: {result.order_id}")
-
-    print(f"Промпт: {result.prompt_id}@{result.prompt_version}")
-    print(f"Всего токенов: {result.total_tokens}")
-    print(f"ID ответов: {', '.join(result.response_ids)}")
-
-
 def run_console(
     chat_service: ChatService,
     analyzer: SupportRequestAnalyzer,
-    order_status_assistant: OrderStatusAssistant,
     app_env: str,
     configured_model: str,
 ) -> None:
@@ -112,18 +100,6 @@ def run_console(
 
             decision = decide_review(analysis_result)
             print_analysis(decision)
-            continue
-
-        if command == "/order":
-            request_text = input("Вопрос о заказе: ")
-
-            try:
-                order_result = order_status_assistant.answer(request_text)
-            except OrderStatusAssistantError as error:
-                print(f"Ошибка проверки заказа: {error}")
-                continue
-
-            print_order_status_answer(order_result)
             continue
 
         stream = chat_service.stream_reply(session_id, user_text)
