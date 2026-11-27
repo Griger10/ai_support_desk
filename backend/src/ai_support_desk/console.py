@@ -73,7 +73,12 @@ def run_console(
 
     session_id = uuid4().hex
     print(f"Session ID: {session_id}")
-    print("Команды: /new — новый диалог, /analyze — анализ обращения, /exit — выход.")
+    print(
+        "Команды: /new — новый диалог, "
+        "/analyze — анализ обращения, "
+        "/confirm — подтвердить действие, "
+        "/cancel — отменить действие, /exit — выход."
+    )
     print("Во время ответа нажмите Ctrl+C, чтобы отменить генерацию.")
 
     while True:
@@ -100,6 +105,28 @@ def run_console(
 
             decision = decide_review(analysis_result)
             print_analysis(decision)
+            continue
+
+        if command == "/confirm":
+            try:
+                action = chat_service.confirm_pending(session_id)
+            except ChatServiceError as error:
+                print(f"Ошибка подтверждения: {error}")
+                continue
+
+            print(action.text)
+            print(f"Статус аудита: {action.audit.status}")
+            continue
+
+        if command == "/cancel":
+            try:
+                action = chat_service.cancel_pending(session_id)
+            except ChatServiceError as error:
+                print(f"Ошибка отмены: {error}")
+                continue
+
+            print(action.text)
+            print(f"Статус аудита: {action.audit.status}")
             continue
 
         stream = chat_service.stream_reply(session_id, user_text)
