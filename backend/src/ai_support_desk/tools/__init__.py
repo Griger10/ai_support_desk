@@ -1,4 +1,4 @@
-from ai_support_desk.tools.dto import RegisteredTool
+from ai_support_desk.tools.dto import RegisteredTool, ToolLoopResult, ToolAuditRecord
 from ai_support_desk.tools.errors import (
     ToolRegistryError,
     DuplicateToolError,
@@ -11,6 +11,8 @@ __all__ = [
     "DuplicateToolError",
     "OrderStatusResult",
     "RegisteredTool",
+    "ToolAuditRecord",
+    "ToolLoopResult",
     "ToolNotRegisteredError",
     "ToolRegistryError",
     "get_order_status",

@@ -63,3 +63,17 @@ class ToolAuditRecord:
 class ToolExecutionResult:
     content: str
     audit: ToolAuditRecord
+
+
+@dataclass(frozen=True, slots=True)
+class ToolLoopResult:
+    text: str
+    model: str
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+    response_ids: tuple[str, ...]
+    model_steps: int
+    tool_calls_count: int
+    tool_names: tuple[str, ...]
+    audit_records: tuple[ToolAuditRecord, ...]

@@ -42,3 +42,21 @@ class ToolTimeoutError(ToolExecutionError):
 
 class ToolTechnicalError(ToolExecutionError):
     pass
+
+
+class ToolLoopError(RuntimeError):
+    pass
+
+
+class ToolLoopProtocolError(ToolLoopError):
+    pass
+
+
+class ToolLoopLimitError(ToolLoopError):
+    pass
+
+
+class ToolLoopExecutionError(ToolLoopError):
+    def __init__(self, message: str, audit: ToolAuditRecord) -> None:
+        super().__init__(message)
+        self.audit = audit
