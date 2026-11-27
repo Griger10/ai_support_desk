@@ -1,19 +1,32 @@
 import json
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, UTC
+from threading import Lock
 from time import perf_counter
+from typing import Any
+from uuid import uuid4
 
 from pydantic import ValidationError, BaseModel
 
 from ai_support_desk.llm import ToolCall
 from ai_support_desk.tools import ToolNotRegisteredError
-from ai_support_desk.tools.dto import ToolExecutionResult, ToolExecutionStatus, ToolAuditRecord
+from ai_support_desk.tools.dto import (
+    ToolExecutionResult,
+    ToolExecutionStatus,
+    ToolAuditRecord,
+    _PendingToolExecution,
+    ToolAccess,
+    ToolConfirmationRequest,
+    RegisteredTool,
+)
 from ai_support_desk.tools.errors import (
     ToolNotAllowedError,
     ToolArgumentsError,
     ToolBusinessError,
     ToolTimeoutError,
     ToolTechnicalError,
+    ToolConfirmationRequiredError,
+    ToolConfirmationNotFoundError,
 )
 from ai_support_desk.tools.registry import ToolRegistry
 
@@ -25,6 +38,8 @@ class ToolExecutor:
 
         self._registry = registry
         self._pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="tool-executor")
+        self._pending: dict[str, _PendingToolExecution] = {}
+        self._pending_lock = Lock()
 
     def execute(self, tool_call: ToolCall) -> ToolExecutionResult:
         started_at = datetime.now(UTC).isoformat()
@@ -54,6 +69,74 @@ class ToolExecutor:
             )
             raise ToolArgumentsError("Аргументы инструмента не прошли проверку.", audit) from error
 
+        if tool.tool_access is ToolAccess.WRITE:
+            confirmation_id = uuid4().hex
+            request = ToolConfirmationRequest(
+                confirmation_id=confirmation_id,
+                tool_name=tool.name,
+                arguments_json=arguments.model_dump_json(),
+            )
+            pending = _PendingToolExecution(
+                tool_call=tool_call,
+                tool=tool,
+                arguments=arguments,
+            )
+
+            with self._pending_lock:
+                self._pending[confirmation_id] = pending
+
+            audit = self._build_audit(
+                tool_call=tool_call,
+                started_at=started_at,
+                started=started,
+                status=ToolExecutionStatus.CONFIRMATION_REQUIRED,
+                error_code="confirmation_required",
+            )
+            raise ToolConfirmationRequiredError(
+                "Действие требует подтверждения пользователя.",
+                audit,
+                request,
+            )
+
+        return self._execute_handler(
+            tool_call=tool_call,
+            tool=tool,
+            arguments=arguments,
+            started_at=started_at,
+            started=started,
+        )
+
+    @staticmethod
+    def _build_audit(
+        tool_call: ToolCall,
+        started_at: str,
+        started: float,
+        status: ToolExecutionStatus,
+        error_code: str | None,
+    ) -> ToolAuditRecord:
+        return ToolAuditRecord(
+            call_id=tool_call.id,
+            tool_name=tool_call.name,
+            started_at=started_at,
+            duration_seconds=perf_counter() - started,
+            status=status,
+            error_code=error_code,
+        )
+
+    def close(self) -> None:
+        with self._pending_lock:
+            self._pending.clear()
+
+        self._pool.shutdown(wait=True, cancel_futures=True)
+
+    def _execute_handler(
+        self,
+        tool_call: ToolCall,
+        tool: RegisteredTool[Any, Any],
+        arguments: BaseModel,
+        started_at: str,
+        started: float,
+    ) -> ToolExecutionResult:
         future = self._pool.submit(tool.handler, arguments)
 
         try:
@@ -67,7 +150,10 @@ class ToolExecutor:
                 status=ToolExecutionStatus.TIMEOUT,
                 error_code="timeout",
             )
-            raise ToolTimeoutError("Инструмент не завершился вовремя.", audit) from error
+            raise ToolTimeoutError(
+                "Инструмент не завершился вовремя.",
+                audit,
+            ) from error
         except ToolBusinessError as error:
             audit = self._build_audit(
                 tool_call=tool_call,
@@ -97,7 +183,10 @@ class ToolExecutor:
                 status=ToolExecutionStatus.TECHNICAL_ERROR,
                 error_code="technical_error",
             )
-            raise ToolTechnicalError("Инструмент завершился технической ошибкой.", audit) from error
+            raise ToolTechnicalError(
+                "Инструмент завершился технической ошибкой.",
+                audit,
+            ) from error
 
         if not isinstance(result, BaseModel):
             audit = self._build_audit(
@@ -107,7 +196,10 @@ class ToolExecutor:
                 status=ToolExecutionStatus.TECHNICAL_ERROR,
                 error_code="invalid_result_type",
             )
-            raise ToolTechnicalError("Инструмент вернул результат неверного типа.", audit)
+            raise ToolTechnicalError(
+                "Инструмент вернул результат неверного типа.",
+                audit,
+            )
 
         audit = self._build_audit(
             tool_call=tool_call,
@@ -127,22 +219,41 @@ class ToolExecutor:
             audit=audit,
         )
 
-    @staticmethod
-    def _build_audit(
-        tool_call: ToolCall,
-        started_at: str,
-        started: float,
-        status: ToolExecutionStatus,
-        error_code: str | None,
-    ) -> ToolAuditRecord:
-        return ToolAuditRecord(
-            call_id=tool_call.id,
-            tool_name=tool_call.name,
-            started_at=started_at,
-            duration_seconds=perf_counter() - started,
-            status=status,
-            error_code=error_code,
+    def confirm(
+        self,
+        confirmation_id: str,
+    ) -> ToolExecutionResult:
+        pending = self._take_pending(confirmation_id)
+        return self._execute_handler(
+            tool_call=pending.tool_call,
+            tool=pending.tool,
+            arguments=pending.arguments,
+            started_at=datetime.now(UTC).isoformat(),
+            started=perf_counter(),
         )
 
-    def close(self) -> None:
-        self._pool.shutdown(wait=True, cancel_futures=True)
+    def cancel(
+        self,
+        confirmation_id: str,
+    ) -> ToolAuditRecord:
+        pending = self._take_pending(confirmation_id)
+        started = perf_counter()
+        return self._build_audit(
+            tool_call=pending.tool_call,
+            started_at=datetime.now(UTC).isoformat(),
+            started=started,
+            status=ToolExecutionStatus.CANCELLED,
+            error_code="user_cancelled",
+        )
+
+    def _take_pending(
+        self,
+        confirmation_id: str,
+    ) -> _PendingToolExecution:
+        with self._pending_lock:
+            try:
+                return self._pending.pop(confirmation_id)
+            except KeyError as error:
+                raise ToolConfirmationNotFoundError(
+                    "Подготовленное действие не найдено."
+                ) from error

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ai_support_desk.tools.dto import ToolAuditRecord
+    from ai_support_desk.tools.dto import ToolAuditRecord, ToolConfirmationRequest
 
 
 class ToolRegistryError(RuntimeError):
@@ -60,3 +60,18 @@ class ToolLoopExecutionError(ToolLoopError):
     def __init__(self, message: str, audit: ToolAuditRecord) -> None:
         super().__init__(message)
         self.audit = audit
+
+
+class ToolConfirmationRequiredError(ToolExecutionError):
+    def __init__(
+        self,
+        message: str,
+        audit: ToolAuditRecord,
+        request: ToolConfirmationRequest,
+    ) -> None:
+        super().__init__(message, audit)
+        self.request = request
+
+
+class ToolConfirmationNotFoundError(RuntimeError):
+    pass

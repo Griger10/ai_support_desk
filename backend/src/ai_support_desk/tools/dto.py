@@ -6,6 +6,8 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 
+from ai_support_desk.llm import ToolCall
+
 
 class ToolAccess(StrEnum):
     READ_ONLY = "read_only"
@@ -53,6 +55,8 @@ class ToolExecutionStatus(StrEnum):
     REJECTED = "rejected"
     TIMEOUT = "timeout"
     TECHNICAL_ERROR = "technical_error"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+    CANCELLED = "cancelled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,3 +87,17 @@ class ToolLoopResult:
     tool_calls_count: int
     tool_names: tuple[str, ...]
     audit_records: tuple[ToolAuditRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ToolConfirmationRequest:
+    confirmation_id: str
+    tool_name: str
+    arguments_json: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PendingToolExecution:
+    tool_call: ToolCall
+    tool: RegisteredTool[Any, Any]
+    arguments: BaseModel
