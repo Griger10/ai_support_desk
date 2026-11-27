@@ -48,7 +48,7 @@ class OrderStatusAssistant:
         try:
             first_result = self._llm_client.generate_with_tools(
                 messages=messages,
-                tools=[ORDER_STATUS_TOOL],
+                tools=[ORDER_STATUS_TOOL.to_api_schema()],
                 tool_choice="auto",
             )
         except LLMClientError as error:
@@ -107,7 +107,7 @@ class OrderStatusAssistant:
         try:
             final_result = self._llm_client.generate_with_tools(
                 messages=messages,
-                tools=[ORDER_STATUS_TOOL],
+                tools=[ORDER_STATUS_TOOL.to_api_schema()],
                 tool_choice="none",
             )
         except LLMClientError as error:

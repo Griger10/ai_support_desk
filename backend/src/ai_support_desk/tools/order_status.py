@@ -1,8 +1,8 @@
 from enum import StrEnum
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ai_support_desk.tools import RegisteredTool
 
 GET_ORDER_STATUS_TOOL_NAME = "get_order_status"
 
@@ -58,17 +58,15 @@ def get_order_status(
     )
 
 
-ORDER_STATUS_TOOL: dict[str, Any] = {
-    "type": "function",
-    "function": {
-        "name": GET_ORDER_STATUS_TOOL_NAME,
-        "description": (
-            "Возвращает актуальный статус заказа "
-            "по его четырёхзначному номеру. "
-            "Используй инструмент только для вопроса "
-            "о статусе или местонахождении заказа."
-        ),
-        "strict": True,
-        "parameters": GetOrderStatusArguments.model_json_schema(),
-    },
-}
+ORDER_STATUS_TOOL = RegisteredTool[GetOrderStatusArguments, OrderStatusResult](
+    name=GET_ORDER_STATUS_TOOL_NAME,
+    description=(
+        "Возвращает актуальный статус заказа "
+        "по его четырёхзначному номеру. "
+        "Используй инструмент только для вопроса "
+        "о статусе или местонахождении заказа."
+    ),
+    arguments_model=GetOrderStatusArguments,
+    handler=get_order_status,
+    timeout_seconds=2.0,
+)
