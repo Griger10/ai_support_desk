@@ -1,14 +1,16 @@
 from ai_support_desk.prompts.errors import PromptTemplateError
 from ai_support_desk.prompts.support_chat.v1_0_0 import SUPPORT_CHAT_PROMPT_V1_0_0
 from ai_support_desk.prompts.support_chat.v1_1_0 import SUPPORT_CHAT_PROMPT_V1_1_0
+from ai_support_desk.prompts.support_chat.v1_2_0 import SUPPORT_CHAT_PROMPT_V1_2_0
 from ai_support_desk.prompts.template import PromptTemplate
 
-ACTIVE_SUPPORT_CHAT_VERSION = "1.0.0"
+ACTIVE_SUPPORT_CHAT_VERSION = "1.2.0"
 
 
 _SUPPORT_CHAT_PROMPTS: dict[str, PromptTemplate] = {
     SUPPORT_CHAT_PROMPT_V1_0_0.version: SUPPORT_CHAT_PROMPT_V1_0_0,
     SUPPORT_CHAT_PROMPT_V1_1_0.version: SUPPORT_CHAT_PROMPT_V1_1_0,
+    SUPPORT_CHAT_PROMPT_V1_2_0.version: SUPPORT_CHAT_PROMPT_V1_2_0,
 }
 
 
