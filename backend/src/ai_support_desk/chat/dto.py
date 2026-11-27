@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from threading import Lock
 
 from ai_support_desk.llm import Message
+from ai_support_desk.tools import ToolAuditRecord
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,7 @@ class ChatReply:
 class ChatSession:
     messages: list[Message] = field(default_factory=list)
     summary: str | None = None
+    pending_confirmation_id: str | None = None
     lock: Lock = field(default_factory=Lock)
 
 
@@ -42,6 +44,12 @@ class ChatTextDelta:
 @dataclass(frozen=True, slots=True)
 class ChatStreamCompleted:
     result: ChatReply
+
+
+@dataclass(frozen=True, slots=True)
+class ToolActionReply:
+    text: str
+    audit: ToolAuditRecord
 
 
 type ChatStreamEvent = ChatTextDelta | ChatStreamCompleted

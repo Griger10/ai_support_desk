@@ -1,3 +1,4 @@
+import json
 from collections.abc import Generator
 from threading import Lock
 from time import perf_counter
@@ -9,6 +10,7 @@ from ai_support_desk.chat import (
     ChatStreamCompleted,
     ChatTextDelta,
     ChatStreamEvent,
+    ToolActionReply,
 )
 from ai_support_desk.conversation import ConversationSummaryService, ConversationSummaryError
 from ai_support_desk.history import ChatHistoryError, SlidingWindowHistory
@@ -17,6 +19,7 @@ from ai_support_desk.prompts.support_chat import SUPPORT_CHAT_PROMPT
 from ai_support_desk.prompts.template import PromptTemplate
 from ai_support_desk.tools import BoundedToolLoop
 from ai_support_desk.tools.errors import ToolLoopError
+import contextlib
 
 
 class ChatService:
@@ -61,6 +64,11 @@ class ChatService:
         session = self._get_or_create_session(session_key)
 
         with session.lock:
+            if session.pending_confirmation_id is not None:
+                raise ChatServiceError(
+                    "Сначала подтвердите действие командой "
+                    "/confirm или отмените его командой /cancel."
+                )
             developer_message = self._build_developer_message()
             user_message = self._build_user_message(text)
             summary_message = self._build_summary_message(session.summary)
@@ -114,6 +122,9 @@ class ChatService:
             elapsed_seconds = perf_counter() - started_at
             reply_text = self._validate_reply(loop_result.text)
 
+            if loop_result.confirmation is not None:
+                session.pending_confirmation_id = loop_result.confirmation.confirmation_id
+
             yield ChatTextDelta(text=reply_text)
             assistant_message: Message = {
                 "role": "assistant",
@@ -162,7 +173,14 @@ class ChatService:
             return
 
         with session.lock:
+            confirmation_id = session.pending_confirmation_id
+            session.pending_confirmation_id = None
             session.messages.clear()
+            session.summary = None
+
+        if confirmation_id is not None:
+            with contextlib.suppress(ToolLoopError):
+                self._tool_loop.cancel(confirmation_id)
 
     def _get_or_create_session(
         self,
@@ -174,6 +192,79 @@ class ChatService:
                 session = ChatSession()
                 self._sessions[session_id] = session
             return session
+
+    def confirm_pending(
+        self,
+        session_id: str,
+    ) -> ToolActionReply:
+        session_key = self._normalize_session_id(session_id)
+        session = self._get_or_create_session(session_key)
+
+        with session.lock:
+            confirmation_id = session.pending_confirmation_id
+            if confirmation_id is None:
+                raise ChatServiceError("В этой сессии нет действия для подтверждения.")
+
+            try:
+                execution = self._tool_loop.confirm(confirmation_id)
+            except ToolLoopError as error:
+                raise ChatServiceError(f"Не удалось выполнить действие: {error}") from error
+            finally:
+                session.pending_confirmation_id = None
+
+            payload = json.loads(execution.content)
+            text = "Результат подтвержденного действия:\n" + json.dumps(
+                payload,
+                ensure_ascii=False,
+                indent=2,
+            )
+            session.messages.extend(
+                [
+                    {
+                        "role": "user",
+                        "content": ("Подтверждаю ранее подготовленное действие."),
+                    },
+                    {
+                        "role": "assistant",
+                        "content": text,
+                    },
+                ]
+            )
+            return ToolActionReply(
+                text=text,
+                audit=execution.audit,
+            )
+
+    def cancel_pending(
+        self,
+        session_id: str,
+    ) -> ToolActionReply:
+        session_key = self._normalize_session_id(session_id)
+        session = self._get_or_create_session(session_key)
+
+        with session.lock:
+            confirmation_id = session.pending_confirmation_id
+            if confirmation_id is None:
+                raise ChatServiceError("В этой сессии нет действия для отмены.")
+
+            try:
+                audit = self._tool_loop.cancel(confirmation_id)
+            except ToolLoopError as error:
+                raise ChatServiceError(f"Не удалось отменить действие: {error}") from error
+            finally:
+                session.pending_confirmation_id = None
+
+            text = "Подготовленное действие отменено."
+            session.messages.extend(
+                [
+                    {
+                        "role": "user",
+                        "content": ("Отменяю ранее подготовленное действие."),
+                    },
+                    {"role": "assistant", "content": text},
+                ]
+            )
+            return ToolActionReply(text=text, audit=audit)
 
     @staticmethod
     def _normalize_session_id(session_id: str) -> str:
