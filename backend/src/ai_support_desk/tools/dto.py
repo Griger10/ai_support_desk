@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 
+
 class ToolAccess(StrEnum):
     READ_ONLY = "read_only"
     WRITE = "write"
