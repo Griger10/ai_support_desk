@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ai_support_desk.tools.dto import ToolAuditRecord
+
+
 class ToolRegistryError(RuntimeError):
     pass
 
@@ -7,4 +13,32 @@ class DuplicateToolError(ToolRegistryError):
 
 
 class ToolNotRegisteredError(ToolRegistryError):
+    pass
+
+
+class ToolBusinessError(RuntimeError):
+    def __init__(self, message: str, code: str = "business_error") -> None:
+        super().__init__(message)
+        self.code = code
+
+
+class ToolExecutionError(RuntimeError):
+    def __init__(self, message: str, audit: ToolAuditRecord) -> None:
+        super().__init__(message)
+        self.audit = audit
+
+
+class ToolNotAllowedError(ToolExecutionError):
+    pass
+
+
+class ToolArgumentsError(ToolExecutionError):
+    pass
+
+
+class ToolTimeoutError(ToolExecutionError):
+    pass
+
+
+class ToolTechnicalError(ToolExecutionError):
     pass

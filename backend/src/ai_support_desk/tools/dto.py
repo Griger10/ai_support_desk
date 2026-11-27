@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum
 from re import fullmatch
 from typing import Any
 from collections.abc import Callable
@@ -38,3 +39,27 @@ class RegisteredTool[ArgumentsT: BaseModel, ResultT: BaseModel]:
                 "parameters": self.arguments_model.model_json_schema(),
             },
         }
+
+
+class ToolExecutionStatus(StrEnum):
+    SUCCESS = "success"
+    BUSINESS_ERROR = "business_error"
+    REJECTED = "rejected"
+    TIMEOUT = "timeout"
+    TECHNICAL_ERROR = "technical_error"
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAuditRecord:
+    call_id: str
+    tool_name: str
+    started_at: str
+    duration_seconds: float
+    status: ToolExecutionStatus
+    error_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ToolExecutionResult:
+    content: str
+    audit: ToolAuditRecord
