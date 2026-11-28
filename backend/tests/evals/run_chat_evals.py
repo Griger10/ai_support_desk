@@ -74,7 +74,7 @@ def save_report(
         "results": [asdict(result) for result in results],
     }
 
-    report_path = RESULTS_DIR / (f"{prompt.prompt_id}-{prompt.version}-{timestamp}.json")
+    report_path = RESULTS_DIR / f"{prompt.prompt_id}-{prompt.version}-{timestamp}.json"
     report_path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2),
         encoding="utf-8",
