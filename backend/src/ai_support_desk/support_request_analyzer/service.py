@@ -8,10 +8,10 @@ from ai_support_desk.models import (
     SupportRequestAnalysis,
     validate_support_request,
     SupportRequestSemanticError,
+    Urgency,
+    SupportCategory,
 )
-from ai_support_desk.models.support_request import Urgency, SupportCategory
 from ai_support_desk.prompts.support_request_analysis import SUPPORT_REQUEST_ANALYSIS_PROMPT
-from ai_support_desk.schemas import SUPPORT_REQUEST_SCHEMA_NAME, SUPPORT_REQUEST_SCHEMA
 from ai_support_desk.support_request_analyzer import (
     SupportRequestRefusalError,
     IncompleteSupportRequestError,
@@ -25,6 +25,8 @@ from ai_support_desk.support_request_analyzer.dto import (
     MIN_AUTOMATIC_CONFIDENCE,
 )
 
+SUPPORT_REQUEST_SCHEMA_NAME = "support_request"
+SUPPORT_REQUEST_SCHEMA = SupportRequestAnalysis.model_json_schema()
 DEVELOPER_INSTRUCTION = SUPPORT_REQUEST_ANALYSIS_PROMPT.render()
 MAX_REPAIR_ATTEMPTS = 1
 
