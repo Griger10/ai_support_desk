@@ -20,7 +20,7 @@ from ai_support_desk.tools.execution import ToolExecutor
 from tests.evals.chat_models import TurnEvalResult
 from tests.evals.chat_checks import run_suite
 
-PROMPT_VERSIONS = ("1.0.0", "1.1.0")
+PROMPT_VERSIONS = ("1.0.0", "1.1.0", "1.2.0", "1.3.0")
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 
@@ -28,14 +28,16 @@ def build_chat_service(
     settings: Settings,
     llm_client: LLMClient,
     prompt: PromptTemplate,
-) -> ChatService:
-    pool_registry = build_default_tool_registry()
-    tool_executor = ToolExecutor(pool_registry)
+) -> tuple[ChatService, ToolExecutor]:
+    tool_registry = build_default_tool_registry()
+    tool_executor = ToolExecutor(tool_registry)
     tool_loop = BoundedToolLoop(
         client=llm_client,
-        registry=pool_registry,
+        registry=tool_registry,
         executor=tool_executor,
+        max_steps=settings.tool_max_steps,
     )
+
     token_counter = TokenCounter()
     history_policy = SlidingWindowHistory(
         token_counter=token_counter,
@@ -43,12 +45,13 @@ def build_chat_service(
     )
     summary_service = ConversationSummaryService(llm_client)
 
-    return ChatService(
+    chat_service = ChatService(
         tool_loop=tool_loop,
         history_policy=history_policy,
         summary_service=summary_service,
         prompt=prompt,
     )
+    return chat_service, tool_executor
 
 
 def save_report(
@@ -122,17 +125,24 @@ def main() -> None:
     try:
         for version in PROMPT_VERSIONS:
             prompt = get_support_chat_prompt(version)
-            chat_service = build_chat_service(
+            chat_service, tool_executor = build_chat_service(
                 settings=settings,
                 llm_client=llm_client,
                 prompt=prompt,
             )
 
-            print(f"\n=== {prompt.prompt_id}@{prompt.version} ===")
-            results = run_suite(chat_service)
-            report_path = save_report(settings, prompt, results)
-            print_summary(prompt, results, report_path)
-            summaries[version] = count_passed_cases(results)
+            try:
+                print(f"\n=== {prompt.prompt_id}@{prompt.version} ===")
+                results = run_suite(chat_service)
+                report_path = save_report(
+                    settings,
+                    prompt,
+                    results,
+                )
+                print_summary(prompt, results, report_path)
+                summaries[version] = count_passed_cases(results)
+            finally:
+                tool_executor.close()
     finally:
         llm_client.close()
 
